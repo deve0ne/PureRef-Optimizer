@@ -1,7 +1,7 @@
 import argparse
 from PIL import Image
 import io
-import time
+from tqdm import tqdm
 from multiprocessing import Pool
 from PureRef_format.purformat.read import read_pur_file
 from PureRef_format.purformat.write import write_pur_file
@@ -51,26 +51,35 @@ def fix_transform(transform, new_size, scale):
     transform.scale_to_width(old_width)
 
 
-def process_pureref_file(args):
+def process_pureref_file(args, progress_callback=None):
     output_file = PurFile()
     read_pur_file(output_file, args.input_file)
 
     with Pool(processes=args.processes) as pool:
         from functools import partial
-        from tqdm import tqdm
 
         process_image_with_args = partial(process_image, args)
-        output_file.images = list(tqdm(pool.imap(process_image_with_args, output_file.images), total=len(output_file.images)))
+        total_images = len(output_file.images)
+        iterable = pool.imap(process_image_with_args, output_file.images)
+
+        if not progress_callback:
+            for i, image in enumerate(tqdm(iterable, total=total_images)):
+                output_file.images[i] = image
+        else:
+            for i, image in enumerate(iterable):
+                progress_callback(i / total_images)  # Update progress
+                output_file.images[i] = image
 
     output_pureref_filepath = args.input_file.rsplit('.pur', 1)[0] + "_compressed.pur"
     write_pur_file(output_file, output_pureref_filepath)
+
 
 def main():
     parser = argparse.ArgumentParser(description="Optimize PureRef files.")
     parser.add_argument("input_file", type=str, help="The input PureRef file path.")
     parser.add_argument("--max_dimension", type=int, default=2048, help="Maximum dimension for the longest side of the image.")
     parser.add_argument("--colors", type=int, default=256, help="Number of colors for the image palette.")
-    parser.add_argument("--processes", type=int, default=8, help="Number of processes to use.")
+    parser.add_argument("--processes", type=int, default=6, help="Number of processes to use.")
     args = parser.parse_args()
 
     process_pureref_file(args)
