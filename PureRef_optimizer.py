@@ -53,29 +53,27 @@ def fix_transform(transform, new_size, scale):
 
 def process_pureref_file(args):
     output_file = PurFile()
-    read_pur_file(output_file, args.input_pureref_filepath)
+    read_pur_file(output_file, args.input_file)
 
     with Pool(processes=args.processes) as pool:
         from functools import partial
+        from tqdm import tqdm
+
         process_image_with_args = partial(process_image, args)
-        output_file.images = pool.map(process_image_with_args, output_file.images)
+        output_file.images = list(tqdm(pool.imap(process_image_with_args, output_file.images), total=len(output_file.images)))
 
-    output_pureref_filepath = args.input_pureref_filepath.rsplit('.pur', 1)[0] + "_compressed.pur"
+    output_pureref_filepath = args.input_file.rsplit('.pur', 1)[0] + "_compressed.pur"
     write_pur_file(output_file, output_pureref_filepath)
-
 
 def main():
     parser = argparse.ArgumentParser(description="Optimize PureRef files.")
-    parser.add_argument("input_pureref_filepath", type=str, help="The input PureRef file path.")
+    parser.add_argument("input_file", type=str, help="The input PureRef file path.")
     parser.add_argument("--max_dimension", type=int, default=2048, help="Maximum dimension for the longest side of the image.")
     parser.add_argument("--colors", type=int, default=256, help="Number of colors for the image palette.")
     parser.add_argument("--processes", type=int, default=8, help="Number of processes to use.")
     args = parser.parse_args()
 
-    start_time = time.time()
     process_pureref_file(args)
-    end_time = time.time()
-    print(f"Time taken: {end_time - start_time} seconds")
 
 
 if __name__ == "__main__":
