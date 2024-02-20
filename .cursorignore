@@ -2,5 +2,9 @@ README.md
 LICENSE
 .gitignore
 .cursorignore
+.gitmodules
+requirements
 tower.pur
 tower_compressed.pur
+
+PureRef_format

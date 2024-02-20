@@ -1,66 +1,75 @@
-import argparse
-import customtkinter as ctk
-from tkinter import filedialog
-import PureRef_optimizer
+import eel
+import sys
+from PureRef_optimizer import process_pureref_file, argparse
 
-def gui_process_pureref_file(input_file, max_dimension, colors, progress_bar, app):
-    args = argparse.Namespace(
-        input_file=input_file,
-        max_dimension=int(max_dimension),
-        colors=int(colors),
-        processes=6
+eel.init("web")
+
+
+@eel.expose
+def set_input_file(input_file):
+    global args
+    args.input_file = input_file
+
+
+@eel.expose
+def start_optimization(max_dimension, colors):
+    args.max_dimension = int(max_dimension)
+    args.colors = int(colors)
+    process_pureref_file(args, progress_callback=update_progress)
+
+
+def update_progress(progress):
+    eel.updateProgress(progress)
+
+
+def main():
+    global args
+    parser = argparse.ArgumentParser(description="Optimize PureRef files.")
+    parser.add_argument("--input_file", type=str, help="The input PureRef file path.")
+    parser.add_argument(
+        "--max_dimension",
+        type=int,
+        default=2048,
+        help="Maximum dimension for the longest side of the image.",
     )
+    parser.add_argument(
+        "--colors",
+        type=int,
+        default=256,
+        help="Number of colors for the image palette.",
+    )
+    parser.add_argument(
+        "--processes", type=int, default=6, help="Number of processes to use."
+    )
+    args = parser.parse_args()
 
-    # Define a callback function that updates the progress bar
-    def progress_callback(progress_fraction):
-        update_progress_bar(progress_bar, progress_fraction, app)
+    eel.start("gui.html", mode="electron", size=(360, 600))
+    observer.join()
 
-    # Pass the callback function to the process_pureref_file function
-    PureRef_optimizer.process_pureref_file(args, progress_callback=progress_callback)
+import eel
+import time
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
-def update_progress_bar(progress_bar, value, app):
-    progress_bar.set(value)
-    # This ensures the GUI updates in real-time
-    app.update_idletasks()
+# Путь к папке с исходниками, которые нужно отслеживать
+watched_dir = "web"
 
-def select_file(label):
-    file_path = filedialog.askopenfilename()
-    if file_path:
-        label.set(file_path)
-        
-def start_optimization(progress_bar, file_label, max_dimension, colors, app):
-    input_file = file_label.get()
-    if input_file:
-        progress_bar.set(0.0)
-        gui_process_pureref_file(input_file, max_dimension.get(), colors.get(), progress_bar, app)
-        progress_bar.set(1.0)
+class ReloadHandler(FileSystemEventHandler):
+    def on_modified(self, event):
+        eel.reload_page()  # Функция для перезагрузки страницы
 
-def create_gui():
-    app = ctk.CTk()
-    app.title('PureRef Optimizer')
-    app.geometry('400x300')
+@eel.expose
+def reload_page():
+    eel.browsers[0].reload()
 
-    ctk.set_appearance_mode("Dark")  # Set the theme to Dark
+# Настройка Watchdog
+event_handler = ReloadHandler()
+observer = Observer()
+observer.schedule(event_handler, path=watched_dir, recursive=True)
+observer.start()
 
-    file_label = ctk.StringVar(value="Drag and drop or select a PureRef file")
-    ctk.CTkLabel(app, textvariable=file_label).pack(pady=10)
 
-    ctk.CTkButton(app, text="Select File", command=lambda: select_file(file_label)).pack(pady=10)
 
-    max_dimension = ctk.CTkSlider(app, from_=512, to=4096, number_of_steps=3)
-    max_dimension.set(2048)
-    max_dimension.pack(pady=10)
-
-    colors = ctk.CTkSlider(app, from_=128, to=512, number_of_steps=2)
-    colors.set(256)
-    colors.pack(pady=10)
-
-    progress_bar = ctk.CTkProgressBar(app)
-    progress_bar.pack(pady=10)
-
-    ctk.CTkButton(app, text="Optimize", command=lambda: start_optimization(progress_bar, file_label, max_dimension, colors, app)).pack(pady=10)
-
-    app.mainloop()
 
 if __name__ == "__main__":
-    create_gui()
+    main()

@@ -1,12 +1,12 @@
-# Python
 __pycache__
 
-# Editor
 .vs
 .vscode
 .idea
 
-# Program
 Artists
 Purs
 *.pur
+node_modules
+package-lock.json
+package.json
