@@ -1,5 +1,6 @@
 # Python
 __pycache__
+venv
 
 # Editor
 .vs
@@ -7,6 +8,4 @@ __pycache__
 .idea
 
 # Program
-Artists
-Purs
 *.pur

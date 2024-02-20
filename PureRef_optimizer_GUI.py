@@ -1,66 +1,75 @@
-import argparse
-import customtkinter as ctk
-from tkinter import filedialog
-import PureRef_optimizer
+import webview
+import threading
+import json
+from PureRef_optimizer import process_pureref_file, argparse
 
-def gui_process_pureref_file(input_file, max_dimension, colors, progress_bar, app):
+# Define a function to handle the optimization process
+def optimize_pureref_file(options):
     args = argparse.Namespace(
-        input_file=input_file,
-        max_dimension=int(max_dimension),
-        colors=int(colors),
-        processes=6
+        input_file=options['input_file'],
+        max_dimension=options['max_dimension'],
+        colors=options['colors'],
+        processes=options['processes']
     )
+    process_pureref_file(args)
 
-    # Define a callback function that updates the progress bar
-    def progress_callback(progress_fraction):
-        update_progress_bar(progress_bar, progress_fraction, app)
+# Define a function to be called from the JS API
+def start_optimization(window, options):
+    threading.Thread(target=optimize_pureref_file, args=(options,)).start()
+    window.evaluate_js('optimizationStarted()')
 
-    # Pass the callback function to the process_pureref_file function
-    PureRef_optimizer.process_pureref_file(args, progress_callback=progress_callback)
+# Create a simple HTML interface
+html = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PureRef Optimizer</title>
+    <script>
+        function startOptimization() {
+            var input_file = document.getElementById('input_file').value;
+            var max_dimension = parseInt(document.getElementById('max_dimension').value);
+            var colors = parseInt(document.getElementById('colors').value);
+            var processes = parseInt(document.getElementById('processes').value);
 
-def update_progress_bar(progress_bar, value, app):
-    progress_bar.set(value)
-    # This ensures the GUI updates in real-time
-    app.update_idletasks()
+            var options = {
+                input_file: input_file,
+                max_dimension: max_dimension,
+                colors: colors,
+                processes: processes
+            };
 
-def select_file(label):
-    file_path = filedialog.askopenfilename()
-    if file_path:
-        label.set(file_path)
-        
-def start_optimization(progress_bar, file_label, max_dimension, colors, app):
-    input_file = file_label.get()
-    if input_file:
-        progress_bar.set(0.0)
-        gui_process_pureref_file(input_file, max_dimension.get(), colors.get(), progress_bar, app)
-        progress_bar.set(1.0)
+            pywebview.api.start_optimization(options);
+        }
 
-def create_gui():
-    app = ctk.CTk()
-    app.title('PureRef Optimizer')
-    app.geometry('400x300')
+        function optimizationStarted() {
+            alert('Optimization has started!');
+        }
+    </script>
+</head>
+<body>
+    <h1>PureRef Optimizer</h1>
+    <input type="file" id="input_file" accept=".pur"><br>
+    Max Dimension: <input type="number" id="max_dimension" value="2048"><br>
+    Colors: <input type="number" id="colors" value="256"><br>
+    Processes: <input type="number" id="processes" value="6"><br>
+    <button onclick="startOptimization()">Start Optimization</button>
+</body>
+</html>
+"""
 
-    ctk.set_appearance_mode("Dark")  # Set the theme to Dark
+# Set up the JS API
+class Api:
+    def __init__(self, window):
+        self.window = window
 
-    file_label = ctk.StringVar(value="Drag and drop or select a PureRef file")
-    ctk.CTkLabel(app, textvariable=file_label).pack(pady=10)
+    def start_optimization(self, options):
+        start_optimization(self.window, options)
 
-    ctk.CTkButton(app, text="Select File", command=lambda: select_file(file_label)).pack(pady=10)
+# Create the webview window
+def create_window():
+    window = webview.create_window('PureRef Optimizer', html=html)
+    window.api = Api(window)  # Set the API for the window
+    webview.start(debug=True)
 
-    max_dimension = ctk.CTkSlider(app, from_=512, to=4096, number_of_steps=3)
-    max_dimension.set(2048)
-    max_dimension.pack(pady=10)
-
-    colors = ctk.CTkSlider(app, from_=128, to=512, number_of_steps=2)
-    colors.set(256)
-    colors.pack(pady=10)
-
-    progress_bar = ctk.CTkProgressBar(app)
-    progress_bar.pack(pady=10)
-
-    ctk.CTkButton(app, text="Optimize", command=lambda: start_optimization(progress_bar, file_label, max_dimension, colors, app)).pack(pady=10)
-
-    app.mainloop()
-
-if __name__ == "__main__":
-    create_gui()
+if __name__ == '__main__':
+    create_window()
