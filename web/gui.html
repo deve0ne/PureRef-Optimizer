@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>PureRef Optimizer</title>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+</head>
+
+<body>
+    <div id="app">
+        <div class="logo-container">
+            <img src="PureRef.svg" alt="PureRef Logo" class="logo-image">
+        </div>
+
+        <div class="properties-box">
+            <div class="input-group">
+                <label for="max_dimension">Max Dimension:</label>
+                <input type="range" id="max_dimension" min="512" max="4096" step="512" value="2048">
+                <!-- <span id="max_dimension_value">2048</span> -->
+            </div>
+            <div class="input-group">
+                <label for="colors">Colors:</label>
+                <input type="range" id="colors" min="128" max="512" step="128" value="256">
+                <!-- <span id="colors_value">256</span> -->
+            </div>
+        </div>
+
+        <button id="startOptimizationButton">Start Optimization</button>
+    </div>
+</body>
+
+</html>

@@ -1,6 +1,5 @@
 import webview
 import threading
-import json
 from PureRef_optimizer import process_pureref_file, argparse
 
 # Define a function to handle the optimization process
@@ -18,45 +17,6 @@ def start_optimization(window, options):
     threading.Thread(target=optimize_pureref_file, args=(options,)).start()
     window.evaluate_js('optimizationStarted()')
 
-# Create a simple HTML interface
-html = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>PureRef Optimizer</title>
-    <script>
-        function startOptimization() {
-            var input_file = document.getElementById('input_file').value;
-            var max_dimension = parseInt(document.getElementById('max_dimension').value);
-            var colors = parseInt(document.getElementById('colors').value);
-            var processes = parseInt(document.getElementById('processes').value);
-
-            var options = {
-                input_file: input_file,
-                max_dimension: max_dimension,
-                colors: colors,
-                processes: processes
-            };
-
-            pywebview.api.start_optimization(options);
-        }
-
-        function optimizationStarted() {
-            alert('Optimization has started!');
-        }
-    </script>
-</head>
-<body>
-    <h1>PureRef Optimizer</h1>
-    <input type="file" id="input_file" accept=".pur"><br>
-    Max Dimension: <input type="number" id="max_dimension" value="2048"><br>
-    Colors: <input type="number" id="colors" value="256"><br>
-    Processes: <input type="number" id="processes" value="6"><br>
-    <button onclick="startOptimization()">Start Optimization</button>
-</body>
-</html>
-"""
-
 # Set up the JS API
 class Api:
     def __init__(self, window):
@@ -65,11 +25,20 @@ class Api:
     def start_optimization(self, options):
         start_optimization(self.window, options)
 
-# Create the webview window
+
+import watchfiles
+
+def watch_and_reload(window):
+    for change in watchfiles.watch('web'):
+        window.evaluate_js('window.location.reload()')
+
 def create_window():
-    window = webview.create_window('PureRef Optimizer', html=html)
+    with open('./web/gui.html', 'r', encoding='utf-8') as f:
+        html_content = f.read()
+    window = webview.create_window('PureRef Optimizer', 'web/gui.html', resizable=False, width=360, height=600, background_color="#0E0E11")
     window.api = Api(window)  # Set the API for the window
-    webview.start(debug=True)
+    webview.start(func=watch_and_reload, args=window, debug=True, http_server=True)
+
 
 if __name__ == '__main__':
     create_window()
